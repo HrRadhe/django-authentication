@@ -2,7 +2,7 @@
 
 set -e
 
-MANAGE_PY="config/manage.py"
+MANAGE_PY="./manage.py"
 
 echo "Checking if database is ready..."
 
