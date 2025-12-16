@@ -1,0 +1,35 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+
+# --- Python & Django ---
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+*.log
+
+# --- Security ---
+.env
+.env.*
+
+# --- Docker Bind Mounts (Do NOT commit these) ---
+pg_data/
+
+# We ignore static/media because they are generated/uploaded content
+static/
+media/
+
+# --- IDEs / OS ---
+.vscode/
+.idea/
+.DS_Store
