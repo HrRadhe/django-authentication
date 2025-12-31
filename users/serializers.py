@@ -53,3 +53,17 @@ class SetPasswordSerializer(serializers.Serializer):
         if user.has_usable_password():
             raise serializers.ValidationError("Password already set")
         return data
+    
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    token = serializers.CharField()
+    password = serializers.CharField(min_length=8)
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField()
+    new_password = serializers.CharField(min_length=8)

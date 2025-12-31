@@ -13,14 +13,14 @@ from django.conf import settings
 from django.shortcuts import redirect
 
 
-from .serializers import LoginSerializer, RegisterSerializer, SetPasswordSerializer
+from .serializers import LoginSerializer, RegisterSerializer, SetPasswordSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, ChangePasswordSerializer
 from .models import User, UserSession
 from .tokens import verify_email_verification_token, generate_email_verification_token
-from .emails import send_verification_email
+from .emails import send_verification_email, send_password_reset_email
 from .audit import log_event
 from .services import get_or_create_user_from_sso
 from .sso import exchange_github_code, exchange_google_code
-from .utils import decode_state, encode_state
+from .utils import decode_state, encode_state, generate_password_reset_token, verify_password_reset_token
 
 
 @api_view(["POST"])
@@ -349,3 +349,95 @@ def set_password_view(request):
 
     return Response({"detail": "Password set successfully"})
 
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def forgot_password_view(request):
+    serializer = ForgotPasswordSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    email = serializer.validated_data["email"]
+
+    user = User.objects.filter(email=email).first()
+    if user and user.has_usable_password():
+        token = generate_password_reset_token(user)
+        reset_link = (
+            f"{settings.FRONTEND_URL}/reset-password"
+            f"?token={token}"
+        )
+        send_password_reset_email(user.email, reset_link)
+
+        log_event(
+            actor=user,
+            action="password.reset.request",
+            resource_type="auth",
+            request=request,
+        )
+
+    # Always return same response
+    return Response(
+        {"detail": "If the email exists, a reset link was sent"}
+    )
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def reset_password_view(request):
+    serializer = ResetPasswordSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    user_id = verify_password_reset_token(
+        serializer.validated_data["token"]
+    )
+
+    if not user_id:
+        return Response({"detail": "Invalid or expired token"}, status=400)
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({"detail": "Invalid token"}, status=400)
+
+    user.set_password(serializer.validated_data["password"])
+    user.save(update_fields=["password"])
+
+    log_event(
+        actor=user,
+        action="password.reset.complete",
+        resource_type="auth",
+        request=request,
+    )
+
+    return Response({"detail": "Password reset successful"})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def change_password_view(request):
+    serializer = ChangePasswordSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    user = request.user
+
+    if not user.has_usable_password():
+        return Response(
+            {"detail": "Password login not enabled for this account"},
+            status=400,
+        )
+
+    if not user.check_password(
+        serializer.validated_data["old_password"]
+    ):
+        return Response({"detail": "Incorrect password"}, status=400)
+
+    user.set_password(serializer.validated_data["new_password"])
+    user.save(update_fields=["password"])
+
+    log_event(
+        actor=user,
+        action="password.change",
+        resource_type="auth",
+        request=request,
+    )
+
+    return Response({"detail": "Password changed successfully"})

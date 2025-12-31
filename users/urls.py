@@ -8,9 +8,16 @@ urlpatterns = [
     path("auth/logout/", views.logout_view, name="logout"),
     path("auth/logout-all/", views.logout_all_view),
     path("auth/token/refresh/", views.token_refresh_view, name="token_refresh"),
+
+    # SSO
     path("auth/sso/callback/", views.sso_callback_view),
     path("auth/sso/<str:provider>/", views.sso_login_view),
+
+    # Passwords
     path("auth/set-password/", views.set_password_view),
+    path("auth/forgot-password/", views.forgot_password_view),
+    path("auth/reset-password/", views.reset_password_view),
+    path("auth/change-password/", views.change_password_view),
 
     # User
     path("users/me/", views.me_view, name="me"),

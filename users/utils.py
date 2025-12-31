@@ -28,3 +28,13 @@ def decode_state(state: str, max_age=300):
         return json.loads(raw)
     except (BadSignature, SignatureExpired, ValueError):
         return None
+    
+
+def generate_password_reset_token(user):
+    return signer.sign(str(user.id))
+
+def verify_password_reset_token(token, max_age=900):  # 15 min
+    try:
+        return signer.unsign(token, max_age=max_age)
+    except Exception:
+        return None
