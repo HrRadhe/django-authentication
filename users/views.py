@@ -13,7 +13,7 @@ from .serializers import LoginSerializer, RegisterSerializer
 from .models import User, UserSession
 from .tokens import verify_email_verification_token, generate_email_verification_token
 from .emails import send_verification_email
-
+from .audit import log_event
 
 
 @api_view(["POST"])
@@ -26,6 +26,14 @@ def register_view(request):
 
     token = generate_email_verification_token(user)
     send_verification_email(user, token)
+
+    log_event(
+        actor=user,
+        action="register",
+        resource_type="user",
+        resource_id=user.id,
+        request=request,
+    )
 
     return Response(
         {
@@ -50,6 +58,13 @@ def login_view(request):
         refresh_token_jti=refresh["jti"],
         ip_address=request.META.get("REMOTE_ADDR"),
         user_agent=request.META.get("HTTP_USER_AGENT", ""),
+    )
+
+    log_event(
+        actor=user,
+        action="login",
+        resource_type="auth",
+        request=request,
     )
 
     return Response(
@@ -78,6 +93,13 @@ def logout_view(request):
         refresh_token_jti=token["jti"],
         user=request.user,
     ).update(is_active=False)
+
+    log_event(
+        actor=request.user,
+        action="logout",
+        resource_type="auth",
+        request=request,
+    )
 
     return Response({"detail": "Logged out"})
 

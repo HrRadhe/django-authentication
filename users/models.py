@@ -82,3 +82,34 @@ class UserSession(models.Model):
 
     def __str__(self):
         return f"{self.user} ({self.refresh_token_jti})"
+    
+
+class AuditLog(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    actor = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="audit_logs",
+    )
+
+    action = models.CharField(max_length=100)
+    resource_type = models.CharField(max_length=50)
+    resource_id = models.CharField(max_length=255, blank=True)
+
+    metadata = models.JSONField(blank=True, default=dict)
+
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"{self.action} by {self.actor}"
+    
+

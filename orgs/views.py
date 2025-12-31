@@ -7,6 +7,7 @@ from rest_framework import status
 from django.contrib.auth import get_user_model
 
 
+from users.audit import log_event
 from .utils import get_membership, require_role
 from .models import Organisation, Membership, OrgRole
 from .serializers import OrganisationCreateSerializer, OrganisationSerializer, InviteMemberSerializer, MembershipSerializer
@@ -21,6 +22,14 @@ def create_org_view(request):
     )
     serializer.is_valid(raise_exception=True)
     org = serializer.save()
+
+    log_event(
+        actor=request.user,
+        action="org.create",
+        resource_type="organisation",
+        resource_id=org.id,
+        request=request,
+    )
 
     return Response(
         OrganisationSerializer(org).data,
@@ -82,6 +91,15 @@ def invite_member_view(request, slug):
         defaults={"role": role, "is_active": True},
     )
 
+    log_event(
+        actor=request.user,
+        action="org.member.invite",
+        resource_type="membership",
+        resource_id=user.id,
+        metadata={"org": org.slug, "role": role},
+        request=request,
+    )
+
     return Response(
         {"detail": "Member invited"},
         status=status.HTTP_201_CREATED,
@@ -108,6 +126,15 @@ def change_member_role_view(request, slug, member_id):
     member.role = role
     member.save(update_fields=["role"])
 
+    log_event(
+        actor=request.user,
+        action="org.member.role_change",
+        resource_type="membership",
+        resource_id=member.id,
+        metadata={"new_role": role},
+        request=request,
+    )
+
     return Response({"detail": "Role updated"})
 
 
@@ -126,5 +153,13 @@ def remove_member_view(request, slug, member_id):
 
     member.is_active = False
     member.save(update_fields=["is_active"])
+
+    log_event(
+        actor=request.user,
+        action="org.member.remove",
+        resource_type="membership",
+        resource_id=member.id,
+        request=request,
+    )
 
     return Response({"detail": "Member removed"})

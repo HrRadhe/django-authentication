@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, UserSession
+from .models import User, UserSession, AuditLog
 
 
 @admin.register(User)
@@ -65,4 +65,38 @@ class UserSessionAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         # Prevent editing session details
+        return False
+    
+
+@admin.register(AuditLog)
+class AuditLogAdmin(admin.ModelAdmin):
+    list_display = (
+        "created_at",
+        "actor",
+        "action",
+        "resource_type",
+        "resource_id",
+        "ip_address",
+    )
+
+    list_filter = ("action", "resource_type", "created_at")
+    search_fields = ("actor__email", "resource_id")
+
+    readonly_fields = (
+        "actor",
+        "action",
+        "resource_type",
+        "resource_id",
+        "metadata",
+        "ip_address",
+        "user_agent",
+        "created_at",
+    )
+
+    ordering = ("-created_at",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
         return False
