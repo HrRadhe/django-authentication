@@ -4,10 +4,13 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.exceptions import InvalidToken
 
 
 from .serializers import LoginSerializer, RegisterSerializer
-from .models import User
+from .models import User, UserSession
 from .tokens import verify_email_verification_token, generate_email_verification_token
 from .emails import send_verification_email
 
@@ -41,6 +44,14 @@ def login_view(request):
     user = serializer.validated_data["user"]
     refresh = RefreshToken.for_user(user)
 
+    # Create session
+    UserSession.objects.create(
+        user=user,
+        refresh_token_jti=refresh["jti"],
+        ip_address=request.META.get("REMOTE_ADDR"),
+        user_agent=request.META.get("HTTP_USER_AGENT", ""),
+    )
+
     return Response(
         {
             "access": str(refresh.access_token),
@@ -53,15 +64,66 @@ def login_view(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def logout_view(request):
-    # Stateless JWT: client deletes token
-    return Response({"detail": "Logged out"}, status=status.HTTP_200_OK)
+    refresh_token = request.data.get("refresh")
+
+    if not refresh_token:
+        return Response({"detail": "Refresh token required"}, status=400)
+
+    try:
+        token = RefreshToken(refresh_token)
+    except InvalidToken:
+        return Response({"detail": "Invalid token"}, status=400)
+
+    UserSession.objects.filter(
+        refresh_token_jti=token["jti"],
+        user=request.user,
+    ).update(is_active=False)
+
+    return Response({"detail": "Logged out"})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def logout_all_view(request):
+    UserSession.objects.filter(
+        user=request.user,
+        is_active=True,
+    ).update(is_active=False)
+
+    return Response({"detail": "Logged out from all devices"})
 
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def token_refresh_view(request):
-    view = TokenRefreshView.as_view()
-    return view(request._request)
+    refresh_token = request.data.get("refresh")
+
+    if not refresh_token:
+        return Response({"detail": "Refresh token required"}, status=400)
+
+    try:
+        token = RefreshToken(refresh_token)
+    except InvalidToken:
+        raise AuthenticationFailed("Invalid refresh token")
+
+    jti = token["jti"]
+
+    session = UserSession.objects.filter(
+        refresh_token_jti=jti,
+        is_active=True,
+    ).first()
+
+    if not session:
+        raise AuthenticationFailed("Session expired or revoked")
+
+    # Update usage
+    session.save(update_fields=["last_used_at"])
+
+    return Response(
+        {
+            "access": str(token.access_token),
+        }
+    )
 
 
 @api_view(["GET"])
