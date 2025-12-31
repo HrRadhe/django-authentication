@@ -9,8 +9,10 @@ from django.contrib.auth import get_user_model
 
 from users.audit import log_event
 from .utils import get_membership, require_role
+from .permission import require_permission
 from .models import Organisation, Membership, OrgRole
 from .serializers import OrganisationCreateSerializer, OrganisationSerializer, InviteMemberSerializer, MembershipSerializer
+
 User = get_user_model()
 
 @api_view(["POST"])
@@ -72,7 +74,7 @@ def invite_member_view(request, slug):
     org = Organisation.objects.get(slug=slug)
     membership = get_membership(request.user, org)
 
-    require_role(membership, [OrgRole.OWNER, OrgRole.ADMIN])
+    require_permission(membership, "member.invite")
 
     serializer = InviteMemberSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -112,7 +114,7 @@ def change_member_role_view(request, slug, member_id):
     org = Organisation.objects.get(slug=slug)
     membership = get_membership(request.user, org)
 
-    require_role(membership, [OrgRole.OWNER])
+    require_permission(membership, "member.role.change")
 
     member = Membership.objects.get(
         id=member_id,
@@ -144,7 +146,7 @@ def remove_member_view(request, slug, member_id):
     org = Organisation.objects.get(slug=slug)
     membership = get_membership(request.user, org)
 
-    require_role(membership, [OrgRole.OWNER])
+    require_permission(membership, "member.remove")
 
     member = Membership.objects.get(
         id=member_id,

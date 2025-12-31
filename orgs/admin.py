@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Organisation, Membership
+from .models import Organisation, Membership, Permission, RolePermission
 
 
 class MembershipInline(admin.TabularInline):
@@ -50,3 +50,15 @@ class MembershipAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.select_related("user", "organisation")
+    
+
+@admin.register(Permission)
+class PermissionAdmin(admin.ModelAdmin):
+    list_display = ("code",)
+    search_fields = ("code",)
+
+
+@admin.register(RolePermission)
+class RolePermissionAdmin(admin.ModelAdmin):
+    list_display = ("role", "permission")
+    list_filter = ("role",)
