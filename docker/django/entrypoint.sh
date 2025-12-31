@@ -5,6 +5,7 @@ set -e
 MANAGE_PY="./manage.py"
 
 echo "Checking if database is ready..."
+sleep 5
 
 echo "Applying Database Migrations..."
 python $MANAGE_PY makemigrations

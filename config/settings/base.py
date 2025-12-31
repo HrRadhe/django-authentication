@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 import os
 from pathlib import Path
+from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -29,6 +30,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    "rest_framework",
+
+    'users',
+
 ]
 
 MIDDLEWARE = [
@@ -40,6 +46,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+AUTH_USER_MODEL = "users.User"
 
 ROOT_URLCONF = 'config.urls'
 
@@ -126,9 +134,10 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
+            'format': '{levelname} {asctime} {name} {message}',
             'style': '{',
         },
         'simple': {
@@ -136,30 +145,64 @@ LOGGING = {
             'style': '{',
         },
     },
+
     'handlers': {
         'console': {
-            'level': 'DEBUG', # Change to 'INFO' in production
+            'level': os.environ.get('LOG_LEVEL', 'INFO'),
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
-    },
-    'loggers': {
-        # Root logger: catches everything
-        '': {
-            'handlers': ['console'],
-            'level': 'INFO', 
+
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'django.log'),
+            'maxBytes': 1024 * 1024 * 5,  # 5 MB
+            'backupCount': 5,
+            'formatter': 'verbose',
         },
-        # Django specific logs (SQL queries, request errors)
+    },
+
+    'loggers': {
+        # Root logger – catches everything
+        '': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+        },
+
+        # Django internals
         'django': {
-            'handlers': ['console'],
+            'handlers': ['console', 'file'],
             'level': 'INFO',
             'propagate': False,
         },
-        # Your specific app logger (optional, if you use logger = logging.getLogger(__name__))
-        'config': { 
-            'handlers': ['console'],
+
+        # Project / config logs
+        'config': {
+            'handlers': ['console', 'file'],
             'level': 'DEBUG',
             'propagate': False,
         },
     },
+}
+
+
+FRONTEND_URL =  os.getenv('FRONTEND_URL', "http://localhost:3000"),
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@example.com")
+
+
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "AUTH_HEADER_TYPES": ("Bearer",),
 }

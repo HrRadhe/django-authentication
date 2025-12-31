@@ -1,0 +1,10 @@
+# Ignore the local virtual environment
+.venv
+venv
+env
+
+# Ignore git history and other cache files
+.git
+pycache
+*.pyc
+.DS_Store

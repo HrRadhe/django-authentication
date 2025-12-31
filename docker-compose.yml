@@ -5,9 +5,11 @@ services:
     build:
       context: .
       dockerfile: docker/django/Dockerfile
-    command: uv run gunicorn config.wsgi:application --bind 0.0.0.0:8000 --chdir config
+    # command: uv run gunicorn config.wsgi:application --bind 0.0.0.0:8000 --chdir config
+    command: uv run manage.py runserver 0.0.0.0:8000
     volumes:
       - .:/app
+      - ./logs:/app/logs
       - ./static:/app/static 
       - ./media:/app/media    
     expose:
