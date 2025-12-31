@@ -1,0 +1,30 @@
+import json
+import base64
+from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
+
+signer = TimestampSigner()
+
+
+def encode_state(data: dict) -> str:
+    """
+    data example:
+    {
+        "provider": "google",
+        "next": "/dashboard"
+    }
+    """
+    raw = json.dumps(data)
+    signed = signer.sign(raw)
+    return base64.urlsafe_b64encode(signed.encode()).decode()
+
+
+def decode_state(state: str, max_age=300):
+    """
+    max_age: 5 minutes
+    """
+    try:
+        signed = base64.urlsafe_b64decode(state.encode()).decode()
+        raw = signer.unsign(signed, max_age=max_age)
+        return json.loads(raw)
+    except (BadSignature, SignatureExpired, ValueError):
+        return None

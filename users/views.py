@@ -9,11 +9,18 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.exceptions import InvalidToken
 
 
-from .serializers import LoginSerializer, RegisterSerializer
+from django.conf import settings
+from django.shortcuts import redirect
+
+
+from .serializers import LoginSerializer, RegisterSerializer, SetPasswordSerializer
 from .models import User, UserSession
 from .tokens import verify_email_verification_token, generate_email_verification_token
 from .emails import send_verification_email
 from .audit import log_event
+from .services import get_or_create_user_from_sso
+from .sso import exchange_github_code, exchange_google_code
+from .utils import decode_state, encode_state
 
 
 @api_view(["POST"])
@@ -210,3 +217,135 @@ def resend_verification_view(request):
     send_verification_email(user, token)
 
     return Response({"detail": "Verification email sent"})
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def sso_login_view(request, provider):
+    next_url = request.data.get("next", "/dashboard")
+
+    state = encode_state({
+        "provider": provider,
+        "next": next_url,
+    })
+
+    if provider == "google":
+        auth_url = (
+            "https://accounts.google.com/o/oauth2/v2/auth"
+            f"?client_id={settings.GOOGLE_CLIENT_ID}"
+            f"&redirect_uri={settings.SSO_REDIRECT_URI}"
+            f"&response_type=code"
+            f"&scope=openid email profile"
+            f"&state={state}"
+        )
+
+    elif provider == "github":
+        auth_url = (
+            "https://github.com/login/oauth/authorize"
+            f"?client_id={settings.GITHUB_CLIENT_ID}"
+            f"&redirect_uri={settings.SSO_REDIRECT_URI}"
+            f"&scope=user:email"
+            f"&state={state}"
+        )
+
+    else:
+        return Response({"detail": "Unsupported provider"}, status=400)
+
+    return Response({"auth_url": auth_url})
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def sso_callback_view(request):
+    code = request.GET.get("code")
+    state = request.GET.get("state")
+
+    if not code or not state:
+        return Response({"detail": "Invalid SSO callback"}, status=400)
+
+    state_data = decode_state(state)
+    if not state_data:
+        return Response({"detail": "Invalid or expired state"}, status=400)
+
+    provider = state_data.get("provider")
+    next_url = state_data.get("next", "/")
+
+    if provider == "google":
+        data = exchange_google_code(
+            code,
+            settings.SSO_REDIRECT_URI,
+            settings.GOOGLE_CLIENT_ID,
+            settings.GOOGLE_CLIENT_SECRET,
+        )
+        provider_user_id = data["id"]
+        email = data["email"]
+        name = data.get("name", "")
+
+    elif provider == "github":
+        data = exchange_github_code(
+            code,
+            settings.SSO_REDIRECT_URI,
+            settings.GITHUB_CLIENT_ID,
+            settings.GITHUB_CLIENT_SECRET,
+        )
+        provider_user_id = data["id"]
+        email = data["email"]
+        name = data["name"]
+
+    else:
+        return Response({"detail": "Unsupported provider"}, status=400)
+
+    user, created = get_or_create_user_from_sso(
+        provider=provider,
+        provider_user_id=provider_user_id,
+        email=email,
+        name=name,
+    )
+
+    refresh = RefreshToken.for_user(user)
+
+    UserSession.objects.create(
+        user=user,
+        refresh_token_jti=refresh["jti"],
+        ip_address=request.META.get("REMOTE_ADDR"),
+        user_agent=request.META.get("HTTP_USER_AGENT", ""),
+    )
+
+    log_event(
+        actor=user,
+        action=f"sso.login.{provider}",
+        resource_type="auth",
+        request=request,
+    )
+
+    redirect_url = (
+        f"{settings.FRONTEND_URL}{next_url}"
+        f"?access={refresh.access_token}&refresh={refresh}"
+        f"&new_user={str(created).lower()}"
+    )
+
+    return redirect(redirect_url)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def set_password_view(request):
+    serializer = SetPasswordSerializer(
+        data=request.data,
+        context={"request": request},
+    )
+    serializer.is_valid(raise_exception=True)
+
+    user = request.user
+    user.set_password(serializer.validated_data["password"])
+    user.save(update_fields=["password"])
+
+    log_event(
+        actor=user,
+        action="password.set",
+        resource_type="auth",
+        request=request,
+    )
+
+    return Response({"detail": "Password set successfully"})
+

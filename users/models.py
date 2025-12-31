@@ -113,3 +113,28 @@ class AuditLog(models.Model):
         return f"{self.action} by {self.actor}"
     
 
+class IdentityProvider(models.TextChoices):
+    GOOGLE = "google", "Google"
+    GITHUB = "github", "GitHub"
+
+
+class UserIdentity(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="identities",
+    )
+
+    provider = models.CharField(
+        max_length=20,
+        choices=IdentityProvider.choices,
+    )
+
+    provider_user_id = models.CharField(max_length=255)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("provider", "provider_user_id")

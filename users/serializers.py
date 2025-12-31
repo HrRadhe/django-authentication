@@ -43,3 +43,13 @@ class RegisterSerializer(serializers.Serializer):
             name=validated_data["name"],
         )
         return user
+    
+
+class SetPasswordSerializer(serializers.Serializer):
+    password = serializers.CharField(min_length=8, write_only=True)
+
+    def validate(self, data):
+        user = self.context["request"].user
+        if user.has_usable_password():
+            raise serializers.ValidationError("Password already set")
+        return data

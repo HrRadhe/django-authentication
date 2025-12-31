@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, UserSession, AuditLog
+from .models import User, UserSession, AuditLog, IdentityProvider, UserIdentity
 
 
 @admin.register(User)
@@ -90,6 +90,34 @@ class AuditLogAdmin(admin.ModelAdmin):
         "metadata",
         "ip_address",
         "user_agent",
+        "created_at",
+    )
+
+    ordering = ("-created_at",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+    
+
+@admin.register(UserIdentity)
+class UserIdentityAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "provider",
+        "provider_user_id",
+        "created_at",
+    )
+
+    list_filter = ("provider",)
+    search_fields = ("user__email", "provider_user_id")
+
+    readonly_fields = (
+        "user",
+        "provider",
+        "provider_user_id",
         "created_at",
     )
 
