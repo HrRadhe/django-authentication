@@ -26,3 +26,26 @@ class OrganisationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organisation
         fields = ("id", "name", "slug", "created_at")
+
+
+
+class InviteMemberSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    role = serializers.ChoiceField(
+        choices=["ADMIN", "MEMBER"],
+        default="MEMBER",
+    )
+
+
+class MembershipSerializer(serializers.ModelSerializer):
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+
+    class Meta:
+        model = Membership
+        fields = (
+            "id",
+            "user_email",
+            "role",
+            "joined_at",
+            "is_active",
+        )
