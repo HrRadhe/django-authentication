@@ -1,19 +1,44 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, UserSession, AuditLog, IdentityProvider, UserIdentity
+from .models import User, UserSession, AuditLog, UserIdentity, UserPermission, UserRolePermission
+
+
 
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
     ordering = ("email",)
-    list_display = ("email", "name", "is_active", "is_email_verified", "created_at")
+
+    list_display = (
+        "email",
+        "name",
+        "role",
+        "is_active",
+        "is_email_verified",
+        "created_at",
+    )
+
+    list_filter = (
+        "role",
+        "is_active",
+        "is_email_verified",
+    )
+
     search_fields = ("email", "name")
 
     fieldsets = (
         (None, {"fields": ("email", "password")}),
         ("Personal Info", {"fields": ("name",)}),
-        ("Status", {"fields": ("is_active", "is_email_verified", "is_staff", "is_superuser")}),
-        ("Permissions", {"fields": ("groups", "user_permissions")}),
+        (
+            "Access Control",
+            {
+                "fields": (
+                    "role",
+                    "is_active",
+                    "is_email_verified",
+                )
+            },
+        ),
         ("Timestamps", {"fields": ("last_login",)}),
     )
 
@@ -22,12 +47,18 @@ class UserAdmin(BaseUserAdmin):
             None,
             {
                 "classes": ("wide",),
-                "fields": ("email", "name", "password1", "password2"),
+                "fields": (
+                    "email",
+                    "name",
+                    "role",
+                    "password1",
+                    "password2",
+                ),
             },
         ),
     )
 
-    filter_horizontal = ("groups", "user_permissions")
+    readonly_fields = ("last_login",)
 
 
 @admin.register(UserSession)
@@ -128,3 +159,15 @@ class UserIdentityAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+    
+
+@admin.register(UserPermission)
+class UserPermissionAdmin(admin.ModelAdmin):
+    list_display = ("code",)
+    search_fields = ("code",)
+
+
+@admin.register(UserRolePermission)
+class UserRolePermissionAdmin(admin.ModelAdmin):
+    list_display = ("role", "permission")
+    list_filter = ("role",)

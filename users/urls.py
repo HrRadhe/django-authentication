@@ -23,4 +23,9 @@ urlpatterns = [
     path("users/me/", views.me_view, name="me"),
     path("users/verify-email/", views.verify_email_view, name="verify_email"),
     path("users/resend-verification/", views.resend_verification_view, name="resend_verification"),
+
+    # Test User Permissions
+    path("internal/dashboard/", views.internal_dashboard_view),
+    path("internal/users/", views.internal_users_list_view),
+    path("internal/audit-logs/", views.internal_audit_logs_view),
 ]

@@ -35,6 +35,12 @@ class UserManager(BaseUserManager):
 
         return self.create_user(email, password, **extra_fields)
 
+class UserRole(models.TextChoices):
+    END_USER = "END_USER", "End User"
+    STAFF = "STAFF", "Staff"
+    SYSTEM_ADMIN = "SYSTEM_ADMIN", "System Admin"
+    DATA_ADMIN = "DATA_ADMIN", "Data Admin"
+
 
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -45,6 +51,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_email_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    role = models.CharField(
+        max_length=20,
+        choices=UserRole.choices,
+        default=UserRole.END_USER,
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -138,3 +149,31 @@ class UserIdentity(models.Model):
 
     class Meta:
         unique_together = ("provider", "provider_user_id")
+
+
+class UserPermission(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    code = models.CharField(max_length=100, unique=True)
+    description = models.CharField(max_length=255, blank=True)
+
+    def __str__(self):
+        return self.code
+    
+
+class UserRolePermission(models.Model):
+    role = models.CharField(
+        max_length=30,
+        choices=UserRole.choices,
+    )
+
+    permission = models.ForeignKey(
+        UserPermission,
+        on_delete=models.CASCADE,
+    )
+
+    class Meta:
+        unique_together = ("role", "permission")
+
+
+

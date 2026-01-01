@@ -14,13 +14,14 @@ from django.shortcuts import redirect
 
 
 from .serializers import LoginSerializer, RegisterSerializer, SetPasswordSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, ChangePasswordSerializer
-from .models import User, UserSession
+from .models import User, UserSession, AuditLog
 from .tokens import verify_email_verification_token, generate_email_verification_token
 from .emails import send_verification_email, send_password_reset_email
 from .audit import log_event
 from .services import get_or_create_user_from_sso
 from .sso import exchange_github_code, exchange_google_code
 from .utils import decode_state, encode_state, generate_password_reset_token, verify_password_reset_token
+from .permissions import require_user_permission
 
 
 @api_view(["POST"])
@@ -441,3 +442,73 @@ def change_password_view(request):
     )
 
     return Response({"detail": "Password changed successfully"})
+
+
+# Sample View for User Permissions
+#### START #### 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def internal_dashboard_view(request):
+    require_user_permission(
+        request.user,
+        "internal.dashboard.view",
+    )
+
+    return Response(
+        {
+            "message": "Welcome to the internal dashboard",
+            "user": request.user.email,
+            "role": request.user.role,
+        }
+    )
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def internal_users_list_view(request):
+    require_user_permission(
+        request.user,
+        "internal.users.read",
+    )
+
+    users = User.objects.all().only("id", "email", "role", "is_active")
+
+    return Response(
+        [
+            {
+                "id": user.id,
+                "email": user.email,
+                "role": user.role,
+                "is_active": user.is_active,
+            }
+            for user in users
+        ]
+    )
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def internal_audit_logs_view(request):
+    require_user_permission(
+        request.user,
+        "internal.audit.read",
+    )
+
+    logs = (
+        AuditLog.objects
+        .select_related("actor")
+        .order_by("-created_at")[:50]
+    )
+
+    return Response(
+        [
+            {
+                "id": log.id,
+                "actor": log.actor.email if log.actor else None,
+                "action": log.action,
+                "resource_type": log.resource_type,
+                "created_at": log.created_at,
+            }
+            for log in logs
+        ]
+    )
+
+#### END #### 
