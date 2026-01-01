@@ -92,12 +92,12 @@ def logout_view(request):
     refresh_token = request.data.get("refresh")
 
     if not refresh_token:
-        return Response({"detail": "Refresh token required"}, status=400)
+        return Response({"error": "Refresh token required"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         token = RefreshToken(refresh_token)
     except InvalidToken:
-        return Response({"detail": "Invalid token"}, status=400)
+        return Response({"error": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
 
     UserSession.objects.filter(
         refresh_token_jti=token["jti"],
@@ -131,7 +131,7 @@ def token_refresh_view(request):
     refresh_token = request.data.get("refresh")
 
     if not refresh_token:
-        return Response({"detail": "Refresh token required"}, status=400)
+        return Response({"error": "Refresh token required"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         token = RefreshToken(refresh_token)
@@ -178,17 +178,17 @@ def verify_email_view(request):
     token = request.query_params.get("token")
 
     if not token:
-        return Response({"detail": "Token missing"}, status=400)
+        return Response({"error": "Token missing"}, status=status.HTTP_400_BAD_REQUEST)
 
     user_id = verify_email_verification_token(token)
 
     if not user_id:
-        return Response({"detail": "Invalid or expired token"}, status=400)
+        return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         user = User.objects.get(id=user_id)
     except User.DoesNotExist:
-        return Response({"detail": "User not found"}, status=404)
+        return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if not user.is_email_verified:
         user.is_email_verified = True
@@ -203,7 +203,7 @@ def resend_verification_view(request):
     email = request.data.get("email")
 
     if not email:
-        return Response({"detail": "Email required"}, status=400)
+        return Response({"error": "Email required"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         user = User.objects.get(email=email)
@@ -214,7 +214,7 @@ def resend_verification_view(request):
         )
 
     if user.is_email_verified:
-        return Response({"detail": "Email already verified"}, status=400)
+        return Response({"error": "Email already verified"}, status=status.HTTP_400_BAD_REQUEST)
 
     token = generate_email_verification_token(user)
     send_verification_email(user, token)
@@ -253,7 +253,7 @@ def sso_login_view(request, provider):
         )
 
     else:
-        return Response({"detail": "Unsupported provider"}, status=400)
+        return Response({"error": "Unsupported provider"}, status=status.HTTP_400_BAD_REQUEST)
 
     return Response({"auth_url": auth_url})
 
@@ -265,11 +265,11 @@ def sso_callback_view(request):
     state = request.GET.get("state")
 
     if not code or not state:
-        return Response({"detail": "Invalid SSO callback"}, status=400)
+        return Response({"error": "Invalid SSO callback"}, status=status.HTTP_400_BAD_REQUEST)
 
     state_data = decode_state(state)
     if not state_data:
-        return Response({"detail": "Invalid or expired state"}, status=400)
+        return Response({"error": "Invalid or expired state"}, status=status.HTTP_400_BAD_REQUEST)
 
     provider = state_data.get("provider")
     next_url = state_data.get("next", "/")
@@ -297,7 +297,7 @@ def sso_callback_view(request):
         name = data["name"]
 
     else:
-        return Response({"detail": "Unsupported provider"}, status=400)
+        return Response({"error": "Unsupported provider"}, status=status.HTTP_400_BAD_REQUEST)
 
     user, created = get_or_create_user_from_sso(
         provider=provider,
@@ -396,12 +396,12 @@ def reset_password_view(request):
     )
 
     if not user_id:
-        return Response({"detail": "Invalid or expired token"}, status=400)
+        return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         user = User.objects.get(id=user_id)
     except User.DoesNotExist:
-        return Response({"detail": "Invalid token"}, status=400)
+        return Response({"error": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
 
     user.set_password(serializer.validated_data["password"])
     user.save(update_fields=["password"])
@@ -426,14 +426,14 @@ def change_password_view(request):
 
     if not user.has_usable_password():
         return Response(
-            {"detail": "Password login not enabled for this account"},
-            status=400,
+            {"error": "Password login not enabled for this account"},
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     if not user.check_password(
         serializer.validated_data["old_password"]
     ):
-        return Response({"detail": "Incorrect password"}, status=400)
+        return Response({"error": "Incorrect password"}, status=status.HTTP_400_BAD_REQUEST)
 
     user.set_password(serializer.validated_data["new_password"])
     user.save(update_fields=["password"])

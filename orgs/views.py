@@ -5,6 +5,7 @@ from rest_framework import status
 
 
 from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
 
 
 from users.audit import log_event
@@ -56,7 +57,7 @@ def my_orgs_view(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def list_members_view(request, slug):
-    org = Organisation.objects.get(slug=slug)
+    org = get_object_or_404(Organisation, slug=slug)
     membership = get_membership(request.user, org)
 
     members = Membership.objects.filter(
@@ -73,7 +74,7 @@ def list_members_view(request, slug):
 @permission_classes([IsAuthenticated])
 @throttle_classes([OrgInviteThrottle])
 def invite_member_view(request, slug):
-    org = Organisation.objects.get(slug=slug)
+    org = get_object_or_404(Organisation, slug=slug)
     membership = get_membership(request.user, org)
 
     require_permission(membership, "member.invite")
@@ -113,19 +114,20 @@ def invite_member_view(request, slug):
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def change_member_role_view(request, slug, member_id):
-    org = Organisation.objects.get(slug=slug)
+    org = get_object_or_404(Organisation, slug=slug)
     membership = get_membership(request.user, org)
 
     require_permission(membership, "member.role.change")
 
-    member = Membership.objects.get(
+    member = get_object_or_404(
+        Membership,
         id=member_id,
         organisation=org,
     )
 
     role = request.data.get("role")
     if role not in OrgRole.values:
-        return Response({"detail": "Invalid role"}, status=400)
+        return Response({"error": "Invalid role"}, status=status.HTTP_400_BAD_REQUEST)
 
     member.role = role
     member.save(update_fields=["role"])
@@ -145,12 +147,13 @@ def change_member_role_view(request, slug, member_id):
 @api_view(["DELETE"])
 @permission_classes([IsAuthenticated])
 def remove_member_view(request, slug, member_id):
-    org = Organisation.objects.get(slug=slug)
+    org = get_object_or_404(Organisation, slug=slug)
     membership = get_membership(request.user, org)
 
     require_permission(membership, "member.remove")
 
-    member = Membership.objects.get(
+    member = get_object_or_404(
+        Membership,
         id=member_id,
         organisation=org,
     )
