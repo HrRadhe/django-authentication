@@ -1,4 +1,4 @@
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 
 
 from users.audit import log_event
+from users.throttles import OrgInviteThrottle
 from .utils import get_membership, require_role
 from .permission import require_permission
 from .models import Organisation, Membership, OrgRole
@@ -70,6 +71,7 @@ def list_members_view(request, slug):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([OrgInviteThrottle])
 def invite_member_view(request, slug):
     org = Organisation.objects.get(slug=slug)
     membership = get_membership(request.user, org)

@@ -1,4 +1,4 @@
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
@@ -22,6 +22,7 @@ from .services import get_or_create_user_from_sso
 from .sso import exchange_github_code, exchange_google_code
 from .utils import decode_state, encode_state, generate_password_reset_token, verify_password_reset_token
 from .permissions import require_user_permission
+from .throttles import LoginThrottle, PasswordResetThrottle, SSOThrottle
 
 
 @api_view(["POST"])
@@ -53,6 +54,7 @@ def register_view(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([LoginThrottle])
 def login_view(request):
     serializer = LoginSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -222,6 +224,7 @@ def resend_verification_view(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([SSOThrottle])
 def sso_login_view(request, provider):
     next_url = request.data.get("next", "/dashboard")
 
@@ -353,6 +356,7 @@ def set_password_view(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([PasswordResetThrottle])
 def forgot_password_view(request):
     serializer = ForgotPasswordSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)

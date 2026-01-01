@@ -119,7 +119,8 @@ CACHES = {
         "LOCATION": os.getenv('REDIS_URL', 'redis://redis:6379/1'),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        }
+        },
+        "KEY_PREFIX": "authsvc",
     }
 }
 
@@ -200,6 +201,23 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
     ),
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        # Global safety net
+        "anon": "100/hour",
+        "user": "1000/hour",
+
+        # Auth-specific
+        "login": "5/min",
+        "password_reset": "3/hour",
+        "sso": "10/min",
+
+        # Org
+        "org_invite": "20/hour",
+    },
 }
 
 SIMPLE_JWT = {
