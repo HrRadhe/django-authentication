@@ -1,6 +1,14 @@
 
 # Auth Service – Production‑Grade Authentication & Authorization Platform
 
+
+![Python](https://img.shields.io/badge/python-3.13-blue)
+![Django](https://img.shields.io/badge/django-5.x-success)
+![Auth](https://img.shields.io/badge/auth-production--grade-green)
+![RBAC](https://img.shields.io/badge/RBAC-enabled-purple)
+
+> A production-grade authentication & authorization platform for modern SaaS backends.
+
 This repository provides a **standalone, reusable authentication and authorization service**
 built with **Django + Django REST Framework**, designed for **real SaaS products**.
 
