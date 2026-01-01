@@ -9,6 +9,9 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.exceptions import InvalidToken
 
 
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+
+
 from django.conf import settings
 from django.shortcuts import redirect
 
@@ -25,6 +28,12 @@ from .permissions import require_user_permission
 from .throttles import LoginThrottle, PasswordResetThrottle, SSOThrottle
 
 
+@extend_schema(
+    tags=["Auth"],
+    summary="Register a new user",
+    request=RegisterSerializer,
+    responses={201: OpenApiTypes.OBJECT},
+)
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def register_view(request):
@@ -52,6 +61,12 @@ def register_view(request):
     )
 
 
+@extend_schema(
+    tags=["Auth"],
+    summary="User login",
+    request=LoginSerializer,
+    responses={200: OpenApiTypes.OBJECT},
+)
 @api_view(["POST"])
 @permission_classes([AllowAny])
 @throttle_classes([LoginThrottle])
@@ -86,6 +101,12 @@ def login_view(request):
     )
 
 
+@extend_schema(
+    tags=["Auth"],
+    summary="User logout",
+    request=OpenApiTypes.OBJECT,
+    responses={200: OpenApiTypes.OBJECT},
+)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def logout_view(request):
@@ -114,6 +135,11 @@ def logout_view(request):
     return Response({"detail": "Logged out"})
 
 
+@extend_schema(
+    tags=["Auth"],
+    summary="Logout from all devices",
+    responses={200: OpenApiTypes.OBJECT},
+)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def logout_all_view(request):
@@ -125,6 +151,12 @@ def logout_all_view(request):
     return Response({"detail": "Logged out from all devices"})
 
 
+@extend_schema(
+    tags=["Auth"],
+    summary="Refresh access token",
+    request=OpenApiTypes.OBJECT,
+    responses={200: OpenApiTypes.OBJECT},
+)
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def token_refresh_view(request):
@@ -158,6 +190,11 @@ def token_refresh_view(request):
     )
 
 
+@extend_schema(
+    tags=["User Profile"],
+    summary="Get current user details",
+    responses={200: OpenApiTypes.OBJECT},
+)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def me_view(request):
@@ -172,6 +209,14 @@ def me_view(request):
     )
 
 
+@extend_schema(
+    tags=["Account Management"],
+    summary="Verify email address",
+    parameters=[
+        OpenApiParameter("token", OpenApiTypes.STR, OpenApiParameter.QUERY, required=True),
+    ],
+    responses={200: OpenApiTypes.OBJECT},
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def verify_email_view(request):
@@ -197,6 +242,12 @@ def verify_email_view(request):
     return Response({"detail": "Email verified successfully"})
 
 
+@extend_schema(
+    tags=["Account Management"],
+    summary="Resend verification email",
+    request=OpenApiTypes.OBJECT,
+    responses={200: OpenApiTypes.OBJECT},
+)
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def resend_verification_view(request):
@@ -222,6 +273,15 @@ def resend_verification_view(request):
     return Response({"detail": "Verification email sent"})
 
 
+@extend_schema(
+    tags=["Auth"],
+    summary="Initiate SSO login",
+    parameters=[
+        OpenApiParameter("provider", OpenApiTypes.STR, OpenApiParameter.PATH, enum=["google", "github"]),
+    ],
+    request=OpenApiTypes.OBJECT,
+    responses={200: OpenApiTypes.OBJECT},
+)
 @api_view(["POST"])
 @permission_classes([AllowAny])
 @throttle_classes([SSOThrottle])
@@ -258,6 +318,15 @@ def sso_login_view(request, provider):
     return Response({"auth_url": auth_url})
 
 
+@extend_schema(
+    tags=["Auth"],
+    summary="SSO Callback",
+    parameters=[
+        OpenApiParameter("code", OpenApiTypes.STR, OpenApiParameter.QUERY),
+        OpenApiParameter("state", OpenApiTypes.STR, OpenApiParameter.QUERY),
+    ],
+    responses={302: None},
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def sso_callback_view(request):
@@ -331,6 +400,13 @@ def sso_callback_view(request):
     return redirect(redirect_url)
 
 
+@extend_schema(
+    tags=["Account Management"],
+    summary="Set account password",
+    description="For SSO users who want to add a password login option",
+    request=SetPasswordSerializer,
+    responses={200: OpenApiTypes.OBJECT},
+)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def set_password_view(request):
@@ -354,6 +430,12 @@ def set_password_view(request):
     return Response({"detail": "Password set successfully"})
 
 
+@extend_schema(
+    tags=["Account Management"],
+    summary="Forgot password request",
+    request=ForgotPasswordSerializer,
+    responses={200: OpenApiTypes.OBJECT},
+)
 @api_view(["POST"])
 @permission_classes([AllowAny])
 @throttle_classes([PasswordResetThrottle])
@@ -385,6 +467,12 @@ def forgot_password_view(request):
     )
 
 
+@extend_schema(
+    tags=["Account Management"],
+    summary="Reset password with token",
+    request=ResetPasswordSerializer,
+    responses={200: OpenApiTypes.OBJECT},
+)
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def reset_password_view(request):
@@ -416,6 +504,12 @@ def reset_password_view(request):
     return Response({"detail": "Password reset successful"})
 
 
+@extend_schema(
+    tags=["Account Management"],
+    summary="Change account password",
+    request=ChangePasswordSerializer,
+    responses={200: OpenApiTypes.OBJECT},
+)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def change_password_view(request):
@@ -450,6 +544,11 @@ def change_password_view(request):
 
 # Sample View for User Permissions
 #### START #### 
+@extend_schema(
+    tags=["Internal"],
+    summary="Internal dashboard data",
+    responses={200: OpenApiTypes.OBJECT},
+)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def internal_dashboard_view(request):
@@ -466,6 +565,11 @@ def internal_dashboard_view(request):
         }
     )
 
+@extend_schema(
+    tags=["Internal"],
+    summary="List all users",
+    responses={200: OpenApiTypes.OBJECT},
+)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def internal_users_list_view(request):
@@ -488,6 +592,11 @@ def internal_users_list_view(request):
         ]
     )
 
+@extend_schema(
+    tags=["Internal"],
+    summary="List audit logs",
+    responses={200: OpenApiTypes.OBJECT},
+)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def internal_audit_logs_view(request):

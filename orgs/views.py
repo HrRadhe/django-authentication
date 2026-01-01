@@ -4,6 +4,9 @@ from rest_framework.response import Response
 from rest_framework import status
 
 
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+
+
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 
@@ -17,6 +20,12 @@ from .serializers import OrganisationCreateSerializer, OrganisationSerializer, I
 
 User = get_user_model()
 
+@extend_schema(
+    tags=["Organizations"],
+    summary="Create a new organization",
+    request=OrganisationCreateSerializer,
+    responses={201: OrganisationSerializer},
+)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_org_view(request):
@@ -41,6 +50,11 @@ def create_org_view(request):
     )
 
 
+@extend_schema(
+    tags=["Organizations"],
+    summary="List all organizations I am a member of",
+    responses={200: OrganisationSerializer(many=True)},
+)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def my_orgs_view(request):
@@ -54,6 +68,14 @@ def my_orgs_view(request):
     )
 
 
+@extend_schema(
+    tags=["Members"],
+    summary="List all members of an organization",
+    parameters=[
+        OpenApiParameter("slug", OpenApiTypes.STR, OpenApiParameter.PATH),
+    ],
+    responses={200: MembershipSerializer(many=True)},
+)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def list_members_view(request, slug):
@@ -70,6 +92,15 @@ def list_members_view(request, slug):
     )
 
 
+@extend_schema(
+    tags=["Members"],
+    summary="Invite a new member to an organization",
+    parameters=[
+        OpenApiParameter("slug", OpenApiTypes.STR, OpenApiParameter.PATH),
+    ],
+    request=InviteMemberSerializer,
+    responses={201: OpenApiTypes.OBJECT},
+)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 @throttle_classes([OrgInviteThrottle])
@@ -111,6 +142,16 @@ def invite_member_view(request, slug):
     )
 
 
+@extend_schema(
+    tags=["Members"],
+    summary="Change a member's role",
+    parameters=[
+        OpenApiParameter("slug", OpenApiTypes.STR, OpenApiParameter.PATH),
+        OpenApiParameter("member_id", OpenApiTypes.UUID, OpenApiParameter.PATH),
+    ],
+    request=OpenApiTypes.OBJECT,
+    responses={200: OpenApiTypes.OBJECT},
+)
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def change_member_role_view(request, slug, member_id):
@@ -144,6 +185,15 @@ def change_member_role_view(request, slug, member_id):
     return Response({"detail": "Role updated"})
 
 
+@extend_schema(
+    tags=["Members"],
+    summary="Remove a member from an organization",
+    parameters=[
+        OpenApiParameter("slug", OpenApiTypes.STR, OpenApiParameter.PATH),
+        OpenApiParameter("member_id", OpenApiTypes.UUID, OpenApiParameter.PATH),
+    ],
+    responses={200: OpenApiTypes.OBJECT},
+)
 @api_view(["DELETE"])
 @permission_classes([IsAuthenticated])
 def remove_member_view(request, slug, member_id):
